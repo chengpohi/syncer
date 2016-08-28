@@ -40,7 +40,8 @@ trait FileTable {
 object FileTable {
   implicit val formats = org.json4s.DefaultFormats
   def apply(p: PathReader): FileTable = {
-    val rs: List[Record] = p.ls.map(i => Record(i.getAbsolutePath, md5Hash(i.getName)))
+    val rs: List[Record] = p.ls.map(i => Record(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
+      md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""))))
     new FileTable {
       override var records: List[Record] = rs
     }

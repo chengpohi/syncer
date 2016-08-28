@@ -3,6 +3,7 @@ package com.github.chengpohi
 import java.io.FileWriter
 import java.nio.file.Paths
 
+import akka.actor.ActorRef
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.file.{FileTable, PathReader}
 import org.json4s.native.Serialization.write
@@ -16,12 +17,15 @@ trait SyncScheduler extends Runnable {
   lazy val LOGER = LoggerFactory.getLogger(getClass.getName)
   val fileTable: FileTable
   val pathReader: PathReader
+  val ac: ActorRef
   override def run(): Unit = {
     LOGER.info("Start Updating File")
     val ft = FileTable.apply(pathReader)
     val deleteFiles = fileTable.records.diff(ft.records)
     LOGER.info("Delete Files: " + deleteFiles)
+    ac ! DeleteFile(deleteFiles)
     val newFiles = ft.records.diff(fileTable.records)
+    ac ! NewFile(newFiles)
     LOGER.info("New Files: " + newFiles)
     fileTable.records = ft.records
     LOGER.info("New FileTable: " + fileTable.records)
@@ -30,11 +34,12 @@ trait SyncScheduler extends Runnable {
 
 object SyncScheduler {
   implicit val formats = org.json4s.DefaultFormats
-  def apply(pr: PathReader): SyncScheduler = {
+  def apply(pr: PathReader, a: ActorRef): SyncScheduler = {
     val ft: FileTable = FileTable.apply(pr)
     new SyncScheduler {
       override val pathReader: PathReader = pr
       override val fileTable: FileTable = ft
+      override val ac: ActorRef = a
       Runtime.getRuntime.addShutdownHook(new Thread() {
         override def run(): Unit = {
           val f = write(fileTable.records)
