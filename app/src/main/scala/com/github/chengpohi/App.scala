@@ -16,11 +16,17 @@ import scala.language.postfixOps
   */
 object App {
   val pathReader: PathReader = PathReader.apply(AppConfig.SYNC_PATH)
-  val actorSystem = ActorSystem("Syncer", ConfigFactory.load())
-  val scheduler = actorSystem.scheduler
-  implicit val executor = actorSystem.dispatcher
   def main(args: Array[String]): Unit = {
-    val ac: ActorRef = actorSystem.actorOf(Props[SyncActor], "syncer")
+    val config = args.isEmpty match {
+      case true => ConfigFactory.load()
+      case false => ConfigFactory.parseString("akka.remote.netty.tcp.port=" + args.head).
+        withFallback(ConfigFactory.load())
+    }
+    val actorSystem = ActorSystem("Syncer", config)
+    val scheduler = actorSystem.scheduler
+    implicit val executor = actorSystem.dispatcher
+    val ac: ActorRef = actorSystem.actorOf(Props[SyncService], name = "syncer")
+
     scheduler.schedule(
       initialDelay = Duration(1, TimeUnit.SECONDS),
       interval = Duration(AppConfig.INTERVAL, TimeUnit.SECONDS),
