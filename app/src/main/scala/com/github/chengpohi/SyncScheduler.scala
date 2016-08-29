@@ -5,7 +5,7 @@ import java.nio.file.Paths
 
 import akka.actor.ActorRef
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.file.{FileTable, PathReader}
+import com.github.chengpohi.file.{FileTable, FileTableDAO, PathReader}
 import org.json4s.native.Serialization.write
 import org.slf4j.LoggerFactory
 
@@ -15,34 +15,26 @@ import org.slf4j.LoggerFactory
   */
 trait SyncScheduler extends Runnable {
   lazy val LOGER = LoggerFactory.getLogger(getClass.getName)
-  val fileTable: FileTable
+  val fileTableDAO: FileTableDAO
   val pathReader: PathReader
   val ac: ActorRef
   override def run(): Unit = {
-    LOGER.info("Start Updating File")
-    val ft = FileTable.apply(pathReader)
-    val deleteFiles = fileTable.records.diff(ft.records)
-    LOGER.info("Delete Files: " + deleteFiles)
-    ac ! DeleteFile(deleteFiles)
-    val newFiles = ft.records.diff(fileTable.records)
-    ac ! NewFile(newFiles)
-    LOGER.info("New Files: " + newFiles)
-    fileTable.records = ft.records
-    LOGER.info("New FileTable: " + fileTable.records)
+    val newest: FileTable = fileTableDAO.newest
+    LOGER.info(s"Update file table {}", newest)
+    ac ! newest
   }
 }
 
 object SyncScheduler {
   implicit val formats = org.json4s.DefaultFormats
-  def apply(pr: PathReader, a: ActorRef): SyncScheduler = {
-    val ft: FileTable = FileTable.apply(pr)
+  def apply(pr: PathReader, ft: FileTableDAO, a: ActorRef): SyncScheduler = {
     new SyncScheduler {
       override val pathReader: PathReader = pr
-      override val fileTable: FileTable = ft
+      override val fileTableDAO: FileTableDAO = ft
       override val ac: ActorRef = a
       Runtime.getRuntime.addShutdownHook(new Thread() {
         override def run(): Unit = {
-          val f = write(fileTable.records)
+          val f = write(fileTableDAO.get)
           LOGER.info("Write Records: " + f)
           val fileWriter: FileWriter = new FileWriter(Paths.get(AppConfig.RECORD_FILE).toFile)
           fileWriter.write(f)

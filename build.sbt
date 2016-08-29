@@ -14,11 +14,11 @@ val commonSetting = Seq(
 
 lazy val akkaDependencies = Seq(
   "com.typesafe" % "config" % "1.2.1",
-  "com.typesafe.akka" %% "akka-actor" % "2.4.1",
-  "com.typesafe.akka" %% "akka-testkit" % "2.4.1",
-  "com.typesafe.akka" %% "akka-remote" % "2.4.1",
-  "com.typesafe.akka" %% "akka-cluster" % "2.4.1",
-  "com.typesafe.akka" %% "akka-slf4j" % "2.4.1"
+  "com.typesafe.akka" %% "akka-actor" % "2.4.9",
+  "com.typesafe.akka" %% "akka-testkit" % "2.4.9",
+  "com.typesafe.akka" %% "akka-remote" % "2.4.9",
+  "com.typesafe.akka" %% "akka-cluster" % "2.4.9",
+  "com.typesafe.akka" %% "akka-slf4j" % "2.4.9"
 )
 
 
