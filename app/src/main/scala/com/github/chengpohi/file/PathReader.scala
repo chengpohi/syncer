@@ -40,6 +40,18 @@ trait Operation
 case object Delete extends Operation
 case object Create extends Operation
 
+case object OperationSerializer extends CustomSerializer[Operation](format => (
+  {
+    case JString(operation) =>  operation match {
+      case "Delete" => Delete
+      case "Create" => Create
+    }
+    case JNull => null
+  },
+  {
+    case operation:Operation => JString(operation.getClass.getSimpleName.replace("$",""))
+  }))
+
 case class Commit(date: Date, op: Operation, fileItem: FileItem)
 
 case class Repository(fileItems: List[FileItem], commits: List[Commit])

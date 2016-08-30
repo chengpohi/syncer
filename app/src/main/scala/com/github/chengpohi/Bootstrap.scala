@@ -6,7 +6,7 @@ import java.util.Date
 
 import akka.actor.{ActorSystem, Props}
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.file.{Create, Delete, FileTableDAO, Commit, PathReader, Repository}
+import com.github.chengpohi.file.{Commit, Create, Delete, FileTableDAO, OperationSerializer, PathReader, Repository}
 import com.typesafe.config.Config
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -20,7 +20,7 @@ import scalaz.effect.IO
   * Created by chengpohi on 8/30/16.
   */
 object Bootstrap {
-  implicit val formats = org.json4s.DefaultFormats
+  implicit val formats = org.json4s.DefaultFormats + OperationSerializer
   val pathReader: PathReader = PathReader(AppConfig.SYNC_PATH)
   val fileTableDAO = FileTableDAO(pathReader)
   def init = {
@@ -60,8 +60,8 @@ object Bootstrap {
   }
 
   def writeRepository(repository: Repository) = {
-    val f = write(fileTableDAO.get)
-    val fileWriter: FileWriter = new FileWriter(Paths.get(AppConfig.RECORD_FILE).toFile)
+    val f = write(repository)
+    val fileWriter: FileWriter = new FileWriter(Paths.get(AppConfig.HISTORY_FILE).toFile)
     fileWriter.write(f)
     fileWriter.flush()
     fileWriter.close()
