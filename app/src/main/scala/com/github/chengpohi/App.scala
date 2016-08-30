@@ -17,7 +17,7 @@ object App {
       case false => ConfigFactory.parseString("akka.remote.netty.tcp.port=" + args.head).
         withFallback(ConfigFactory.load())
     }
-    val actorSystem = ActorSystem("Syner", config)
+    val actorSystem = ActorSystem("Syncer", config)
     actorSystem.actorOf(Props[SyncService], name = "syncer")
   }
 }
