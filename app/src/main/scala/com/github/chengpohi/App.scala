@@ -16,7 +16,8 @@ object App {
       case false => ConfigFactory.parseString("akka.remote.netty.tcp.port=" + args.head).
         withFallback(ConfigFactory.load())
     }
-    Bootstrap.init
-    Bootstrap.start(config)
+    val bootstrap: Bootstrap = new Bootstrap(ObjectRegistry)
+    bootstrap.init
+    bootstrap.start(config)
   }
 }

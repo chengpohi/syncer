@@ -10,8 +10,9 @@ import akka.routing.ConsistentHashingRouter.ConsistentHashableEnvelope
 import akka.routing.FromConfig
 import akka.util.ByteString
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.file.{FileTable, FileTableDAO, PathReader}
+import com.github.chengpohi.file.FileTable
 import com.github.chengpohi.model.FileItem
+import com.github.chengpohi.repository.RepositoryService
 
 import scala.concurrent.duration._
 
@@ -24,13 +25,11 @@ case class NewFile(rs: List[FileItem])
 case class RequestFile(r: FileItem)
 case class SendFile(r: FileItem, bytes: ByteString)
 
-class SyncService extends Actor with ActorLogging {
+class SyncService(repositoryService: RepositoryService) extends Actor with ActorLogging {
   implicit val executor = context.system.dispatcher
-  val pathReader: PathReader = PathReader(AppConfig.SYNC_PATH)
-  val fileTable = FileTableDAO(pathReader)
 
   val cluster = Cluster(context.system)
-  val workerRouter = context.actorOf(FromConfig.props(Props(classOf[SyncWorker], fileTable)),
+  val workerRouter = context.actorOf(FromConfig.props(Props(classOf[SyncWorker])),
     name = "workerRouter")
 
   override def preStart(): Unit = {
@@ -40,7 +39,7 @@ class SyncService extends Actor with ActorLogging {
     context.system.scheduler.schedule(
       initialDelay = Duration(1, TimeUnit.SECONDS),
       interval = Duration(AppConfig.INTERVAL, TimeUnit.SECONDS),
-      runnable = SyncScheduler(pathReader, fileTable, self))
+      runnable = SyncScheduler(repositoryService, self))
   }
 
   override def postStop(): Unit = cluster.unsubscribe(self)
@@ -58,14 +57,8 @@ class SyncService extends Actor with ActorLogging {
   }
 }
 
-class SyncWorker(fileTableDAO: FileTableDAO) extends Actor with ActorLogging {
+class SyncWorker extends Actor with ActorLogging {
   override def receive: Receive = {
-    case f: FileTable => {
-      val newFiles: List[FileItem] = fileTableDAO.newFiles(f)
-      newFiles.foreach(f => sender() ! RequestFile(f))
-      val deleteFiles: List[FileItem] = fileTableDAO.deleteFiles(f)
-      self ! DeleteFile(deleteFiles)
-    }
     case d: DeleteFile =>
       log.info("delete files {}", d.rs)
       d.rs.map(_.toFile).filter(_.exists()).foreach(file => {
