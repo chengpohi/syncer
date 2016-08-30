@@ -11,7 +11,7 @@ import akka.routing.FromConfig
 import akka.util.ByteString
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.file.{FileTable, FileTableDAO, PathReader}
-import com.github.chengpohi.model.Record
+import com.github.chengpohi.model.FileItem
 
 import scala.concurrent.duration._
 
@@ -19,10 +19,10 @@ import scala.concurrent.duration._
   * syncer
   * Created by chengpohi on 8/28/16.
   */
-case class DeleteFile(rs: List[Record])
-case class NewFile(rs: List[Record])
-case class RequestFile(r: Record)
-case class SendFile(r: Record, bytes: ByteString)
+case class DeleteFile(rs: List[FileItem])
+case class NewFile(rs: List[FileItem])
+case class RequestFile(r: FileItem)
+case class SendFile(r: FileItem, bytes: ByteString)
 
 class SyncService extends Actor with ActorLogging {
   implicit val executor = context.system.dispatcher
@@ -61,9 +61,9 @@ class SyncService extends Actor with ActorLogging {
 class SyncWorker(fileTableDAO: FileTableDAO) extends Actor with ActorLogging {
   override def receive: Receive = {
     case f: FileTable => {
-      val newFiles: List[Record] = fileTableDAO.newFiles(f)
+      val newFiles: List[FileItem] = fileTableDAO.newFiles(f)
       newFiles.foreach(f => sender() ! RequestFile(f))
-      val deleteFiles: List[Record] = fileTableDAO.deleteFiles(f)
+      val deleteFiles: List[FileItem] = fileTableDAO.deleteFiles(f)
       self ! DeleteFile(deleteFiles)
     }
     case d: DeleteFile =>

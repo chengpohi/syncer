@@ -1,6 +1,5 @@
 package com.github.chengpohi
 
-
 import akka.actor.{ActorSystem, Props}
 import com.typesafe.config.ConfigFactory
 
@@ -17,7 +16,7 @@ object App {
       case false => ConfigFactory.parseString("akka.remote.netty.tcp.port=" + args.head).
         withFallback(ConfigFactory.load())
     }
-    val actorSystem = ActorSystem("Syncer", config)
-    actorSystem.actorOf(Props[SyncService], name = "syncer")
+    Bootstrap.init
+    Bootstrap.start(config)
   }
 }

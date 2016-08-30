@@ -2,9 +2,10 @@ package com.github.chengpohi.file
 
 import java.io.{File, FileNotFoundException}
 import java.nio.file.Paths
+import java.util.Date
 
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.model.Record
+import com.github.chengpohi.model.FileItem
 import org.json4s._
 import org.json4s.native.JsonMethods._
 
@@ -34,9 +35,18 @@ object PathReader {
   }
 }
 
-case class FileTable(var existRecords: List[Record], var deletedRecords: List[Record], var newRecords: List[Record]) {
-  def update(et: List[Record], dr: List[Record], nr: List[Record]) = {
-    existRecords = et
+trait Operation
+
+case object Delete extends Operation
+case object Create extends Operation
+
+case class Commit(date: Date, op: Operation, fileItem: FileItem)
+
+case class Repository(fileItems: List[FileItem], commits: List[Commit])
+
+case class FileTable(var existFileItems: List[FileItem], var deletedRecords: List[FileItem], var newRecords: List[FileItem]) {
+  def update(et: List[FileItem], dr: List[FileItem], nr: List[FileItem]) = {
+    existFileItems = et
     deletedRecords = dr
     newRecords = nr
   }
@@ -44,16 +54,14 @@ case class FileTable(var existRecords: List[Record], var deletedRecords: List[Re
 
 object FileTable {
   implicit val formats = org.json4s.DefaultFormats
-  def apply(p: PathReader): FileTable = readLocalRecords match {
-    case Some(f) => f
-    case None => scanPath(p)
-  }
+  def apply(p: PathReader): FileTable = scanPath(p)
 
   def scanPath(p: PathReader): FileTable = {
-    val rs: List[Record] = p.ls.map(i => Record(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
+    val rs: List[FileItem] = p.ls.map(i => FileItem(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
       md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""))))
     FileTable(rs, List(), List())
   }
+
 
   def readLocalRecords: Option[FileTable] = {
     val io = IO {
@@ -79,22 +87,24 @@ class FileTableDAO(pathReader: PathReader) {
 
   def get = fileTable
 
+  def getFiles = fileTable.existFileItems
+
   def newest: FileTable = {
     val ft = FileTable.scanPath(pathReader)
-    val deleteFiles = fileTable.existRecords.diff(ft.existRecords)
-    val newFiles = ft.existRecords.diff(fileTable.existRecords)
+    val deleteFiles = fileTable.existFileItems.diff(ft.existFileItems)
+    val newFiles = ft.existFileItems.diff(fileTable.existFileItems)
 
-    fileTable.update(ft.existRecords,
+    fileTable.update(ft.existFileItems,
       (fileTable.deletedRecords ::: deleteFiles).distinct,
       (fileTable.newRecords ::: newFiles).distinct)
     fileTable
   }
 
-  def newFiles(ft: FileTable): List[Record] = {
-    ft.newRecords.diff(fileTable.existRecords)
+  def newFiles(ft: FileTable): List[FileItem] = {
+    ft.newRecords.diff(fileTable.existFileItems)
   }
 
-  def deleteFiles(ft: FileTable): List[Record] = {
+  def deleteFiles(ft: FileTable): List[FileItem] = {
     ft.deletedRecords
   }
 }

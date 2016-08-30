@@ -11,4 +11,5 @@ object AppConfig {
   lazy val SYNC_PATH = SYNCER_CONFIG.getConfig("syncer").getString("path")
   lazy val RECORD_FILE = SYNCER_CONFIG.getConfig("syncer").getString("record")
   lazy val INTERVAL = SYNCER_CONFIG.getConfig("syncer").getInt("interval")
+  lazy val HISTORY_FILE = ".history"
 }
