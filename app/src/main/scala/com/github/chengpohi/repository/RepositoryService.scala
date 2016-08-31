@@ -1,10 +1,12 @@
 package com.github.chengpohi.repository
 
-import java.io.{FileNotFoundException, FileWriter}
+import java.io.{File, FileNotFoundException, FileWriter}
 import java.nio.file.Paths
 import java.util.Date
+import java.util.concurrent.locks.ReentrantLock
 
 import com.github.chengpohi.config.AppConfig
+import com.github.chengpohi.file
 import com.github.chengpohi.file.{Commit, Create, Delete, FileTableDAO, OperationSerializer, Repository}
 import org.json4s._
 import org.json4s.native.JsonMethods._
@@ -19,6 +21,7 @@ import scalaz.effect.IO
   */
 class RepositoryService(fileTableDAO: FileTableDAO) {
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
+  val lock = new ReentrantLock()
   def commit = {
     val fileItems = fileTableDAO.getFiles
     val repository = readRepository
@@ -39,6 +42,25 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
     updatedRepository
   }
 
+  def merge(repository: Repository): file.Diff = {
+    readRepository match {
+      case Some(localRepo) =>
+        val remoteDiffCommits: List[Commit] = repository.commits.diff(localRepo.commits)
+        val localDiffCommits: List[Commit] = localRepo.commits.diff(repository.commits)
+        file.Diff(localDiffCommits, remoteDiffCommits)
+    }
+  }
+
+  def mergeDeleteCommit(commit: Commit): Boolean = {
+    val repository = readRepository.get
+    repository.copy(commits = repository.commits :+ commit)
+    val file: File = commit.fileItem.toFile
+    if (file.exists()) {
+      file.delete()
+    }
+    false
+  }
+
   def readRepository: Option[Repository] = {
     val io = IO {
       scala.io.Source.fromFile(AppConfig.HISTORY_FILE).mkString
@@ -57,4 +79,7 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
     fileWriter.flush()
     fileWriter.close()
   }
+
+  def tryLock = lock.tryLock()
+  def release = lock.unlock()
 }

@@ -1,3 +1,5 @@
+import java.nio.file.{Files, Paths}
+
 scalaVersion := "2.11.8"
 
 resolvers ++= Seq(
@@ -50,4 +52,16 @@ lazy val app = project.in(file("app"))
   )
   .aggregate(modules)
   .dependsOn(modules)
+
+lazy val release = taskKey[Unit]("release syncer")
+
+release := {
+  val r = assembly.value
+  val f: File = new File("release/syncer/lib/syncer.jar")
+  if (f.exists()) {
+    f.delete()
+  }
+  f.getParentFile.mkdirs()
+  Files.copy(r.toPath, f.toPath)
+}
 

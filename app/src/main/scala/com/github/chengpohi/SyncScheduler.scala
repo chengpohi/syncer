@@ -1,6 +1,7 @@
 package com.github.chengpohi
 
 import akka.actor.ActorRef
+import com.github.chengpohi.file.Repository
 import com.github.chengpohi.repository.RepositoryService
 import org.slf4j.LoggerFactory
 
@@ -13,9 +14,9 @@ trait SyncScheduler extends Runnable {
   val repositoryService: RepositoryService
   val ac: ActorRef
   override def run(): Unit = {
-    //    repositoryService.readRepository
-    //    LOGER.info(s"Update file table {}", newest)
-    //    ac ! newest
+    val repository: Repository = repositoryService.commit
+    LOGER.info(s"Update file table {}", repository)
+    ac ! repository
   }
 }
 

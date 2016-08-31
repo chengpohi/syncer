@@ -54,6 +54,8 @@ case object OperationSerializer extends CustomSerializer[Operation](format => (
 
 case class Commit(date: Date, op: Operation, fileItem: FileItem)
 
+case class Diff(local: List[Commit], remote: List[Commit])
+
 case class Repository(fileItems: List[FileItem], commits: List[Commit])
 
 case class FileTable(var existFileItems: List[FileItem], var deletedRecords: List[FileItem], var newRecords: List[FileItem]) {

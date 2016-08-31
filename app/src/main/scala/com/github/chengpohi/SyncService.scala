@@ -10,7 +10,7 @@ import akka.routing.ConsistentHashingRouter.ConsistentHashableEnvelope
 import akka.routing.FromConfig
 import akka.util.ByteString
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.file.FileTable
+import com.github.chengpohi.file.{Create, Delete, Diff, Repository}
 import com.github.chengpohi.model.FileItem
 import com.github.chengpohi.repository.RepositoryService
 
@@ -21,7 +21,6 @@ import scala.concurrent.duration._
   * Created by chengpohi on 8/28/16.
   */
 case class DeleteFile(rs: List[FileItem])
-case class NewFile(rs: List[FileItem])
 case class RequestFile(r: FileItem)
 case class SendFile(r: FileItem, bytes: ByteString)
 
@@ -45,33 +44,22 @@ class SyncService(repositoryService: RepositoryService) extends Actor with Actor
   override def postStop(): Unit = cluster.unsubscribe(self)
 
   override def receive: Receive = {
-    case d: DeleteFile => {
-      workerRouter.tell(ConsistentHashableEnvelope(d, d), self)
-    }
-    case n: NewFile => {
-      workerRouter.tell(ConsistentHashableEnvelope(n, n), self)
-    }
-    case f: FileTable => {
-      workerRouter.tell(ConsistentHashableEnvelope(f, f), self)
+    case rs: Repository => {
+      log.info("repository: {}", rs)
+      val aggregator = context.actorOf(Props(
+        classOf[SyncAggregator]))
+      workerRouter.tell(ConsistentHashableEnvelope(rs, rs), aggregator)
     }
   }
 }
 
 class SyncWorker extends Actor with ActorLogging {
+  val service: RepositoryService = ObjectRegistry.repositoryService
+
   override def receive: Receive = {
-    case d: DeleteFile =>
-      log.info("delete files {}", d.rs)
-      d.rs.map(_.toFile).filter(_.exists()).foreach(file => {
-        file.delete() match {
-          case true => log.info("delete file {} success", file.getName)
-          case false => log.info(s"delete file {} fail", file.getName)
-        }
-      })
-    case n: NewFile => {
-      n.rs.filter(!_.toFile.exists()).foreach(r => {
-        log.info(s"new files {}", r.name)
-        sender() ! RequestFile(r)
-      })
+    case re: Repository => {
+      val merge: Diff = service.merge(re)
+      sender() ! merge
     }
     case n: RequestFile => {
       val stream: FileInputStream = new FileInputStream(n.r.toFile)
@@ -79,6 +67,25 @@ class SyncWorker extends Actor with ActorLogging {
       while (stream.read(bytes) != -1) {
         sender() ! SendFile(n.r, ByteString(bytes))
       }
+    }
+  }
+}
+
+class SyncAggregator extends Actor with ActorLogging{
+  val service: RepositoryService = ObjectRegistry.repositoryService
+  override def receive: Receive = {
+    case diff: Diff => {
+      log.info("Diff: {}", diff)
+      diff.remote.foreach(c => {
+        c.op match {
+          case Create => {
+            if (!c.fileItem.toTmpFile.exists()) {
+              sender() ! RequestFile(c.fileItem)
+            }
+          }
+          case Delete => service.mergeDeleteCommit(c)
+        }
+      })
     }
     case s: SendFile => {
       val toFile: File = s.r.toTmpFile
