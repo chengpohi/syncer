@@ -8,7 +8,7 @@ resolvers ++= Seq(
 )
 
 val commonSetting = Seq(
-  version := "1.0",
+  version := "0.1-SNAPSHOT",
   scalaVersion := "2.11.8",
   scalacOptions += "-feature",
   initialCommands in console := "import scalaz._, Scalaz._"
@@ -48,7 +48,7 @@ lazy val app = project.in(file("app"))
   .settings(libraryDependencies ++= commonDependencies ++ akkaDependencies)
   .settings(
     name := "syncer",
-    version := "0.1"
+    version := "0.1-SNAPSHOT"
   )
   .settings(
     mainClass in assembly := Some("com.github.chengpohi.App")
