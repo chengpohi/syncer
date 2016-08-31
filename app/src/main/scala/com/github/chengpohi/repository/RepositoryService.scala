@@ -21,7 +21,7 @@ import scalaz.effect.IO
   */
 class RepositoryService(fileTableDAO: FileTableDAO) {
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
-  val lock = new ReentrantLock()
+  private val lock = new ReentrantLock()
   def commit = {
     val fileItems = fileTableDAO.getFiles
     val repository = readRepository
@@ -81,5 +81,5 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
   }
 
   def tryLock = lock.tryLock()
-  def release = lock.unlock()
+  def unlock = lock.unlock()
 }
