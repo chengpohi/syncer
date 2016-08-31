@@ -1,4 +1,4 @@
-package com.github.chengpohi
+package com.github.chengpohi.service
 
 import java.io.{File, FileInputStream, FileOutputStream}
 import java.util.concurrent.TimeUnit
@@ -12,6 +12,7 @@ import akka.util.ByteString
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.file.{Create, Delete, Diff, Repository}
 import com.github.chengpohi.model.FileItem
+import com.github.chengpohi.registry.ObjectRegistry
 import com.github.chengpohi.repository.RepositoryService
 
 import scala.concurrent.duration._

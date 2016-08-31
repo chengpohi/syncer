@@ -1,4 +1,4 @@
-package com.github.chengpohi
+package com.github.chengpohi.service
 
 import akka.actor.ActorRef
 import com.github.chengpohi.file.Repository

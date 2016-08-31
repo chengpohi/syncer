@@ -1,7 +1,8 @@
-package com.github.chengpohi
+package com.github.chengpohi.init
 
 import akka.actor.{ActorSystem, Props}
 import com.github.chengpohi.repository.RepositoryService
+import com.github.chengpohi.service.SyncService
 import com.typesafe.config.Config
 
 import scala.language.reflectiveCalls

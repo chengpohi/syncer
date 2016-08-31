@@ -1,4 +1,4 @@
-package com.github.chengpohi
+package com.github.chengpohi.registry
 
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.file.{FileTableDAO, PathReader}
