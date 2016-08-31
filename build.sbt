@@ -1,4 +1,4 @@
-import java.nio.file.{Files, Paths}
+import java.nio.file.Files
 
 scalaVersion := "2.11.8"
 
@@ -50,8 +50,14 @@ lazy val app = project.in(file("app"))
     name := "syncer",
     version := "0.1"
   )
+  .settings(
+    mainClass in assembly := Some("com.github.chengpohi.App")
+  )
   .aggregate(modules)
   .dependsOn(modules)
+
+
+lazy val root = project.in(file(".")).aggregate(app).dependsOn(app)
 
 lazy val release = taskKey[Unit]("release syncer")
 
