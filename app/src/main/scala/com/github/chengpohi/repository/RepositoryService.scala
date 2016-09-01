@@ -20,6 +20,7 @@ import scalaz.effect.IO
   * Created by chengpohi on 8/30/16.
   */
 class RepositoryService(fileTableDAO: FileTableDAO) {
+  import com.github.chengpohi.model.FileItemOps._
 
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
   private val lock = new ReentrantLock()
@@ -46,8 +47,8 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
   def diff(repository: Repository): file.Diff = {
     readRepository match {
       case Some(localRepo) =>
-        val remoteDiffCommits: List[Commit] = repository.commits.diff(localRepo.commits)
-        val localDiffCommits: List[Commit] = localRepo.commits.diff(repository.commits)
+        val remoteDiffCommits: List[Commit] = localRepo.commits.diff(repository.commits)
+        val localDiffCommits: List[Commit] = repository.commits.diff(localRepo.commits)
         file.Diff(localDiffCommits, remoteDiffCommits)
     }
   }

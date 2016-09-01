@@ -23,7 +23,7 @@ import scala.concurrent.duration._
   * Created by chengpohi on 8/28/16.
   */
 case class DeleteFile(rs: List[FileItem])
-case class RequestFile(f: FileItem, dist: Path, c: Commit)
+case class RequestFile(f: FileItem, dist: String, c: Commit)
 case class SendFile(r: FileItem, bytes: ByteString)
 case class SendFileDone(commit: Commit)
 
@@ -76,6 +76,9 @@ class SyncWorker extends Actor with ActorLogging {
 }
 
 class SyncAggregator extends Actor with ActorLogging {
+
+  import com.github.chengpohi.model.FileItemOps._
+
   val service: RepositoryService = ObjectRegistry.repositoryService
   override def receive: Receive = {
     case diff: Diff => {
@@ -83,8 +86,9 @@ class SyncAggregator extends Actor with ActorLogging {
       diff.remote.foreach(c => {
         c.op match {
           case Create =>
+            log.info("exist: {}, {}", c.fileItem.toFile.exists(), c.fileItem.toTmpFile.exists())
             if (!c.fileItem.toFile.exists() && !c.fileItem.toTmpFile.exists()) {
-              sender() ! RequestFile(c.fileItem, c.fileItem.toTmpFile.toPath, c)
+              sender() ! RequestFile(c.fileItem, c.fileItem.toTmpFile.toPath.toString, c)
             }
           case Delete => service.mergeDeleteCommit(c)
         }

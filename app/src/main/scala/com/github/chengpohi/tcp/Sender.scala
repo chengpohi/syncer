@@ -19,6 +19,7 @@ import scala.util.{Failure, Success}
   * Created by chengpohi on 8/31/16.
   */
 class Sender(system: ActorSystem, address: String, port: Int, receiver: ActorRef, c: Commit) {
+  import com.github.chengpohi.model.FileItemOps._
   lazy val log = LoggerFactory.getLogger(getClass.getName)
   implicit val sys = system
 
@@ -26,8 +27,8 @@ class Sender(system: ActorSystem, address: String, port: Int, receiver: ActorRef
 
   implicit val materializer = ActorMaterializer()
 
-  def send(dist: Path) = {
-    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port)).runWith(FileIO.toPath(dist)).onComplete {
+  def send(dist: String) = {
+    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port)).runWith(FileIO.toPath(Paths.get(dist))).onComplete {
       case Success(result) =>
         if (receiver != null) {
           receiver ! SendFileDone(c)
@@ -46,7 +47,7 @@ object Sender {
   def main(args: Array[String]): Unit = {
     val fileItem = FileItem("bar.txt", "fasdf")
     val c = Commit(new Date(), Create, fileItem)
-    val dist: Path = Paths.get("tt.txt")
+    val dist = "tt.txt"
     val actorSystem = ActorSystem("Client", ConfigFactory.load())
     new Sender(actorSystem, "localhost", 8888, null, c).send(dist)
   }

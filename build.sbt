@@ -1,4 +1,4 @@
-import java.nio.file.Files
+import java.nio.file.{Files, Paths, StandardCopyOption}
 
 scalaVersion := "2.11.8"
 
@@ -68,6 +68,7 @@ release := {
   if (f.exists()) {
     f.delete()
   }
+  Files.copy(Paths.get("app/src/main/resources/application.conf"), Paths.get("release/syncer/conf/application.conf"), StandardCopyOption.REPLACE_EXISTING)
   f.getParentFile.mkdirs()
   Files.copy(r.toPath, f.toPath)
 }

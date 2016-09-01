@@ -1,16 +1,12 @@
 package com.github.chengpohi.file
 
-import java.io.{File, FileNotFoundException}
+import java.io.File
 import java.nio.file.Paths
 import java.util.Date
 
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.model.FileItem
 import org.json4s._
-import org.json4s.native.JsonMethods._
-
-import scalaz.Scalaz._
-import scalaz.effect.IO
 
 /**
   * syncer
@@ -77,17 +73,6 @@ object FileTable {
       )
     )
     FileTable(rs, List(), List())
-  }
-
-  def readLocalRecords: Option[FileTable] = {
-    val io = IO {
-      scala.io.Source.fromFile(AppConfig.RECORD_FILE).mkString
-    }
-    try {
-      io.map(raw => parse(raw).extract[FileTable]).unsafePerformIO().some
-    } catch {
-      case e: FileNotFoundException => None
-    }
   }
 
   val ignoreSending = (file: File) => file.getName.endsWith(".sending")
