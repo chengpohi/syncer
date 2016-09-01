@@ -1,5 +1,7 @@
 package com.github.chengpohi.config
 
+import java.net.InetSocketAddress
+
 import com.typesafe.config.ConfigFactory
 
 /**
@@ -12,4 +14,7 @@ object AppConfig {
   lazy val RECORD_FILE = SYNCER_CONFIG.getConfig("syncer").getString("record")
   lazy val INTERVAL = SYNCER_CONFIG.getConfig("syncer").getInt("interval")
   lazy val HISTORY_FILE = ".history"
+  lazy val HOSTNAME = SYNCER_CONFIG.getString("akka.remote.netty.tcp.hostname")
+  lazy val SERVER_ADDRESS: InetSocketAddress = new InetSocketAddress(AppConfig.HOSTNAME, 0)
+  lazy val RECEIVER_PORT = SYNCER_CONFIG.getInt("syncer.receiver.port")
 }

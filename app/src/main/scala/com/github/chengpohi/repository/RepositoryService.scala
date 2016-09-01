@@ -20,6 +20,7 @@ import scalaz.effect.IO
   * Created by chengpohi on 8/30/16.
   */
 class RepositoryService(fileTableDAO: FileTableDAO) {
+
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
   private val lock = new ReentrantLock()
   def commit = {
@@ -42,7 +43,7 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
     updatedRepository
   }
 
-  def merge(repository: Repository): file.Diff = {
+  def diff(repository: Repository): file.Diff = {
     readRepository match {
       case Some(localRepo) =>
         val remoteDiffCommits: List[Commit] = repository.commits.diff(localRepo.commits)
@@ -51,9 +52,17 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
     }
   }
 
+  def mergeCreateCommit(commit: Commit): Boolean = {
+    val repository = readRepository.get
+    val updated: Repository = repository.copy(commits = repository.commits :+ commit)
+    writeRepository(updated)
+    true
+  }
+
   def mergeDeleteCommit(commit: Commit): Boolean = {
     val repository = readRepository.get
-    repository.copy(commits = repository.commits :+ commit)
+    val updated: Repository = repository.copy(commits = repository.commits :+ commit)
+    writeRepository(updated)
     val file: File = commit.fileItem.toFile
     if (file.exists()) {
       file.delete()

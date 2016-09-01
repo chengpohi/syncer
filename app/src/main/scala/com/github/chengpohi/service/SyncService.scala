@@ -1,6 +1,6 @@
 package com.github.chengpohi.service
 
-import java.io.{File, FileInputStream, FileOutputStream}
+import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
@@ -10,10 +10,11 @@ import akka.routing.ConsistentHashingRouter.ConsistentHashableEnvelope
 import akka.routing.FromConfig
 import akka.util.ByteString
 import com.github.chengpohi.config.AppConfig
-import com.github.chengpohi.file.{Create, Delete, Diff, Repository}
+import com.github.chengpohi.file.{Commit, Create, Delete, Diff, Repository}
 import com.github.chengpohi.model.FileItem
 import com.github.chengpohi.registry.ObjectRegistry
 import com.github.chengpohi.repository.RepositoryService
+import com.github.chengpohi.tcp.Sender
 
 import scala.concurrent.duration._
 
@@ -22,8 +23,9 @@ import scala.concurrent.duration._
   * Created by chengpohi on 8/28/16.
   */
 case class DeleteFile(rs: List[FileItem])
-case class RequestFile(r: FileItem)
+case class RequestFile(f: FileItem, dist: Path, c: Commit)
 case class SendFile(r: FileItem, bytes: ByteString)
+case class SendFileDone(commit: Commit)
 
 class SyncService(repositoryService: RepositoryService) extends Actor with ActorLogging {
   implicit val executor = context.system.dispatcher
@@ -59,43 +61,40 @@ class SyncWorker extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case re: Repository => {
-      val merge: Diff = service.merge(re)
-      sender() ! merge
+      val diff: Diff = service.diff(re)
+      sender() ! diff
     }
     case n: RequestFile => {
-      val stream: FileInputStream = new FileInputStream(n.r.toFile)
-      val bytes: Array[Byte] = Array.ofDim[Byte](512)
-      while (stream.read(bytes) != -1) {
-        sender() ! SendFile(n.r, ByteString(bytes))
+      sender().path.address.host match {
+        case Some(host) => {
+          new Sender(context.system, host, AppConfig.RECEIVER_PORT, sender(), n.c).send(n.dist)
+        }
+        case None => log.error("could not send file by host is none: {}", n)
       }
     }
   }
 }
 
-class SyncAggregator extends Actor with ActorLogging{
+class SyncAggregator extends Actor with ActorLogging {
   val service: RepositoryService = ObjectRegistry.repositoryService
   override def receive: Receive = {
     case diff: Diff => {
       log.info("Diff: {}", diff)
       diff.remote.foreach(c => {
         c.op match {
-          case Create => {
-            if (!c.fileItem.toTmpFile.exists()) {
-              sender() ! RequestFile(c.fileItem)
+          case Create =>
+            if (!c.fileItem.toFile.exists() && !c.fileItem.toTmpFile.exists()) {
+              sender() ! RequestFile(c.fileItem, c.fileItem.toTmpFile.toPath, c)
             }
-          }
           case Delete => service.mergeDeleteCommit(c)
         }
       })
     }
-    case s: SendFile => {
-      val toFile: File = s.r.toTmpFile
-      if (!toFile.exists()) {
-        toFile.createNewFile()
-      }
-      val fileOutputStream: FileOutputStream = new FileOutputStream(toFile, true)
-      fileOutputStream.write(s.bytes.toArray)
-      fileOutputStream.close()
+    case sf: SendFileDone => {
+      val tmpPath: Path = sf.commit.fileItem.toTmpFile.toPath
+      val distPath: Path = sf.commit.fileItem.toFile.toPath
+      Files.move(tmpPath, distPath)
+      service.mergeCreateCommit(sf.commit)
     }
   }
 }

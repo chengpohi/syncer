@@ -1,6 +1,5 @@
 package com.github.chengpohi
 
-import akka.actor.{ActorSystem, Props}
 import com.github.chengpohi.init.Bootstrap
 import com.github.chengpohi.registry.ObjectRegistry
 import com.typesafe.config.ConfigFactory

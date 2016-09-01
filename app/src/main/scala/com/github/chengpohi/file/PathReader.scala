@@ -20,7 +20,7 @@ trait PathReader {
   val RECORD_FILE = "record.json"
   val path: String
   lazy val file: File = Paths.get(path).toFile
-  def ls: List[File] = {
+  def ls(filter: File => Boolean): List[File] = {
     def rec(file: File): List[File] = file.isDirectory match {
       case true => file.listFiles().flatMap(f => rec(f)).toList
       case false => List(file)
@@ -40,17 +40,15 @@ trait Operation
 case object Delete extends Operation
 case object Create extends Operation
 
-case object OperationSerializer extends CustomSerializer[Operation](format => (
-  {
-    case JString(operation) =>  operation match {
-      case "Delete" => Delete
-      case "Create" => Create
-    }
-    case JNull => null
-  },
-  {
-    case operation:Operation => JString(operation.getClass.getSimpleName.replace("$",""))
-  }))
+case object OperationSerializer extends CustomSerializer[Operation](format => ( {
+  case JString(operation) => operation match {
+    case "Delete" => Delete
+    case "Create" => Create
+  }
+  case JNull => null
+}, {
+  case operation: Operation => JString(operation.getClass.getSimpleName.replace("$", ""))
+}))
 
 case class Commit(date: Date, op: Operation, fileItem: FileItem)
 
@@ -71,11 +69,15 @@ object FileTable {
   def apply(p: PathReader): FileTable = scanPath(p)
 
   def scanPath(p: PathReader): FileTable = {
-    val rs: List[FileItem] = p.ls.map(i => FileItem(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
-      md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""))))
+    val rs: List[FileItem] = p.ls(ignoreSending).map(i =>
+      FileItem(
+        i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
+        md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}",
+          ""))
+      )
+    )
     FileTable(rs, List(), List())
   }
-
 
   def readLocalRecords: Option[FileTable] = {
     val io = IO {
@@ -88,6 +90,8 @@ object FileTable {
     }
   }
 
+  val ignoreSending = (file: File) => file.getName.endsWith(".sending")
+
   def md5Hash(source: String): String =
     java.security.MessageDigest.getInstance("MD5").digest(source.getBytes).map(0xFF & _).map {
       "%02x".format(_)
@@ -97,30 +101,7 @@ object FileTable {
 }
 
 class FileTableDAO(pathReader: PathReader) {
-  val fileTable: FileTable = FileTable.apply(pathReader)
-
-  def get = fileTable
-
-  def getFiles = fileTable.existFileItems
-
-  def newest: FileTable = {
-    val ft = FileTable.scanPath(pathReader)
-    val deleteFiles = fileTable.existFileItems.diff(ft.existFileItems)
-    val newFiles = ft.existFileItems.diff(fileTable.existFileItems)
-
-    fileTable.update(ft.existFileItems,
-      (fileTable.deletedRecords ::: deleteFiles).distinct,
-      (fileTable.newRecords ::: newFiles).distinct)
-    fileTable
-  }
-
-  def newFiles(ft: FileTable): List[FileItem] = {
-    ft.newRecords.diff(fileTable.existFileItems)
-  }
-
-  def deleteFiles(ft: FileTable): List[FileItem] = {
-    ft.deletedRecords
-  }
+  def getFiles = FileTable.apply(pathReader).existFileItems
 }
 
 object FileTableDAO {
