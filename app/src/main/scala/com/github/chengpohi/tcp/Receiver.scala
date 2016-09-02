@@ -1,8 +1,10 @@
 package com.github.chengpohi.tcp
 
+import java.nio.file.Paths
+
 import akka.actor.{ActorSystem, Props}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{Flow, Sink, Tcp}
+import akka.stream.scaladsl.{FileIO, Flow, Sink, Tcp}
 import akka.util.ByteString
 import com.typesafe.config.ConfigFactory
 import org.slf4j.LoggerFactory
@@ -21,8 +23,10 @@ class Receiver(system: ActorSystem, address: String, port: Int) {
 
   val handler = Sink.foreach[Tcp.IncomingConnection] { conn =>
     log.info("Connect from: {}", conn.remoteAddress)
+
     conn handleWith Flow[ByteString]
   }
+
 
   val connections = Tcp().bind(address, port)
   val binding = connections.to(handler).run()

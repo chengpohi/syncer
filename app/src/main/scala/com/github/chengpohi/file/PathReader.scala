@@ -21,7 +21,7 @@ trait PathReader {
       case true => file.listFiles().flatMap(f => rec(f)).toList
       case false => List(file)
     }
-    file.listFiles.toList.flatMap(f => rec(file)).filter(!_.getName.endsWith(".sending"))
+    file.listFiles.toList.flatMap(f => rec(file)).filter(filter)
   }
 }
 
@@ -65,7 +65,7 @@ object FileTable {
   def apply(p: PathReader): FileTable = scanPath(p)
 
   def scanPath(p: PathReader): FileTable = {
-    val rs: List[FileItem] = p.ls(ignoreSending).map(i =>
+    val rs: List[FileItem] = p.ls((f: File) => ignoreSending(f) && ignoreHistory(f)).map(i =>
       FileItem(
         i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
         md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}",
@@ -75,7 +75,8 @@ object FileTable {
     FileTable(rs, List(), List())
   }
 
-  val ignoreSending = (file: File) => file.getName.endsWith(".sending")
+  val ignoreSending = (file: File) => !file.getName.endsWith(".sending")
+  val ignoreHistory = (file: File) => !file.getName.endsWith(".history")
 
   def md5Hash(source: String): String =
     java.security.MessageDigest.getInstance("MD5").digest(source.getBytes).map(0xFF & _).map {

@@ -15,7 +15,6 @@ trait SyncScheduler extends Runnable {
   val ac: ActorRef
   override def run(): Unit = {
     val repository: Repository = repositoryService.commit
-    LOGER.info(s"new repository: {}", repository)
     ac ! repository
   }
 }

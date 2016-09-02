@@ -44,11 +44,11 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
     updatedRepository
   }
 
-  def diff(repository: Repository): file.Diff = {
+  def diff(requestRepository: Repository): file.Diff = {
     readRepository match {
       case Some(localRepo) =>
-        val remoteDiffCommits: List[Commit] = localRepo.commits.diff(repository.commits)
-        val localDiffCommits: List[Commit] = repository.commits.diff(localRepo.commits)
+        val remoteDiffCommits: List[Commit] = localRepo.commits.diff(requestRepository.commits)
+        val localDiffCommits: List[Commit] = requestRepository.commits.diff(localRepo.commits)
         file.Diff(localDiffCommits, remoteDiffCommits)
     }
   }

@@ -1,7 +1,6 @@
 package com.github.chengpohi.service
 
 import java.nio.file.{Files, Path}
-import java.util.concurrent.TimeUnit
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.Cluster
@@ -16,8 +15,6 @@ import com.github.chengpohi.registry.ObjectRegistry
 import com.github.chengpohi.repository.RepositoryService
 import com.github.chengpohi.tcp.Sender
 
-import scala.concurrent.duration._
-
 /**
   * syncer
   * Created by chengpohi on 8/28/16.
@@ -27,9 +24,8 @@ case class RequestFile(f: FileItem, dist: String, c: Commit)
 case class SendFile(r: FileItem, bytes: ByteString)
 case class SendFileDone(commit: Commit)
 
-class SyncService(repositoryService: RepositoryService) extends Actor with ActorLogging {
+class SyncService extends Actor with ActorLogging {
   implicit val executor = context.system.dispatcher
-
   val cluster = Cluster(context.system)
   val workerRouter = context.actorOf(FromConfig.props(Props(classOf[SyncWorker])),
     name = "workerRouter")
@@ -37,11 +33,6 @@ class SyncService(repositoryService: RepositoryService) extends Actor with Actor
   override def preStart(): Unit = {
     cluster.subscribe(self, initialStateMode = InitialStateAsEvents,
       classOf[MemberEvent], classOf[UnreachableMember])
-
-    context.system.scheduler.schedule(
-      initialDelay = Duration(1, TimeUnit.SECONDS),
-      interval = Duration(AppConfig.INTERVAL, TimeUnit.SECONDS),
-      runnable = SyncScheduler(repositoryService, self))
   }
 
   override def postStop(): Unit = cluster.unsubscribe(self)
@@ -67,6 +58,7 @@ class SyncWorker extends Actor with ActorLogging {
     case n: RequestFile => {
       sender().path.address.host match {
         case Some(host) => {
+          log.info("dist host: {}", host)
           new Sender(context.system, host, AppConfig.RECEIVER_PORT, sender(), n.c).send(n.dist)
         }
         case None => log.error("could not send file by host is none: {}", n)

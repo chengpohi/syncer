@@ -5,7 +5,7 @@ import java.util.Date
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{FileIO, Tcp}
+import akka.stream.scaladsl.{FileIO, Sink, Tcp}
 import com.github.chengpohi.file.{Commit, Create}
 import com.github.chengpohi.model.FileItem
 import com.github.chengpohi.service.SendFileDone
@@ -28,7 +28,7 @@ class Sender(system: ActorSystem, address: String, port: Int, receiver: ActorRef
   implicit val materializer = ActorMaterializer()
 
   def send(dist: String) = {
-    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port)).runWith(FileIO.toPath(Paths.get(dist))).onComplete {
+    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port)).runForeach(i => "").onComplete {
       case Success(result) =>
         if (receiver != null) {
           receiver ! SendFileDone(c)
@@ -45,9 +45,9 @@ class Sender(system: ActorSystem, address: String, port: Int, receiver: ActorRef
 
 object Sender {
   def main(args: Array[String]): Unit = {
-    val fileItem = FileItem("bar.txt", "fasdf")
+    val fileItem = FileItem("syncer.jar", "fasdf")
     val c = Commit(new Date(), Create, fileItem)
-    val dist = "tt.txt"
+    val dist: String = "tt.jar"
     val actorSystem = ActorSystem("Client", ConfigFactory.load())
     new Sender(actorSystem, "localhost", 8888, null, c).send(dist)
   }
