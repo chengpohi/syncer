@@ -1,19 +1,20 @@
 package com.github.chengpohi.file
 
 import java.io.File
-import java.nio.file.Paths
+import java.nio.file.{Path, Paths}
 import java.util.Date
 
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.model.FileItem
 import org.json4s._
 
+import scala.io.Source
+
 /**
   * syncer
   * Created by chengpohi on 8/28/16.
   */
 trait PathReader {
-  val RECORD_FILE = "record.json"
   val path: String
   lazy val file: File = Paths.get(path).toFile
   def ls(filter: File => Boolean): List[File] = {
@@ -21,7 +22,7 @@ trait PathReader {
       case true => file.listFiles().flatMap(f => rec(f)).toList
       case false => List(file)
     }
-    file.listFiles.toList.flatMap(f => rec(file)).filter(filter)
+    rec(file).filter(filter)
   }
 }
 
@@ -62,21 +63,41 @@ case class FileTable(var existFileItems: List[FileItem], var deletedRecords: Lis
 
 object FileTable {
   implicit val formats = org.json4s.DefaultFormats
-  def apply(p: PathReader): FileTable = scanPath(p)
+  def apply(p: PathReader): FileTable = scanPath(p)(syncFileFilter)
 
-  def scanPath(p: PathReader): FileTable = {
-    val rs: List[FileItem] = p.ls((f: File) => ignoreSending(f) && ignoreHistory(f)).map(i =>
+  def scanSendedFiles(p: PathReader): List[FileItem] = {
+    p.ls(sendedFiles).map(i =>
       FileItem(
-        i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""),
-        md5Hash(i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}",
-          ""))
-      )
+        i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""), checkSum(i))
+    )
+  }
+
+  def scanPath(p: PathReader)(f: (File) => Boolean): FileTable = {
+    val rs: List[FileItem] = p.ls(f).map(i =>
+      FileItem(
+        i.getAbsolutePath.replaceAll(s"^${AppConfig.SYNC_PATH}", ""), checkSum(i))
     )
     FileTable(rs, List(), List())
   }
 
-  val ignoreSending = (file: File) => !file.getName.endsWith(".sending")
-  val ignoreHistory = (file: File) => !file.getName.endsWith(".history")
+  def sendedFiles(file: File) = file.getName.endsWith(".sending")
+
+  def syncFileFilter(file: File) = file match {
+    case f: File if f.getName.endsWith(".sending") => false
+    case f: File if f.getName.endsWith(".history") => false
+    case _ => true
+  }
+
+  def checkSum(file: File): String = {
+    file.canRead match {
+      case true =>
+        val length = file.length()
+        val head: String = Source.fromFile(file).take(8192 * 2).mkString("")
+        FileTable.md5Hash(head + length)
+      case false =>
+        md5Hash(System.currentTimeMillis().toString)
+    }
+  }
 
   def md5Hash(source: String): String =
     java.security.MessageDigest.getInstance("MD5").digest(source.getBytes).map(0xFF & _).map {
@@ -84,10 +105,27 @@ object FileTable {
     }.foldLeft("") {
       _ + _
     }
+  def randomHashPath: Path = {
+    initSyncFolder()
+    Paths.get(AppConfig.SYNC_HISTORY_FOLDER + "/" + md5Hash(System.currentTimeMillis().toString) + ".sending")
+  }
+
+  def initSyncFolder() = {
+    val file: File = new File(AppConfig.SYNC_HISTORY_FOLDER)
+    file.exists() match {
+      case true =>
+      case false => file.mkdir()
+    }
+  }
 }
 
 class FileTableDAO(pathReader: PathReader) {
   def getFiles = FileTable.apply(pathReader).existFileItems
+  def getCopiedFile(checkSum: String) = {
+    val files: List[FileItem] = FileTable.scanSendedFiles(pathReader)
+    files.filter(f => f.md5 == checkSum).head
+  }
+  val sendFiles = (file: File) => file.getName.endsWith(".sending")
 }
 
 object FileTableDAO {

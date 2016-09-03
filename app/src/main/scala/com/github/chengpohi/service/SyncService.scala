@@ -39,7 +39,8 @@ class SyncService extends Actor with ActorLogging {
 
   override def receive: Receive = {
     case rs: Repository => {
-      log.info("repository: {}", rs)
+      log.info("repository file items: {}", rs.fileItems)
+      log.info("repository commits: {}", rs.commits)
       val aggregator = context.actorOf(Props(
         classOf[SyncAggregator]))
       workerRouter.tell(ConsistentHashableEnvelope(rs, rs), aggregator)
@@ -87,10 +88,12 @@ class SyncAggregator extends Actor with ActorLogging {
       })
     }
     case sf: SendFileDone => {
-      val tmpPath: Path = sf.commit.fileItem.toTmpFile.toPath
-      val distPath: Path = sf.commit.fileItem.toFile.toPath
-      Files.move(tmpPath, distPath)
-      service.mergeCreateCommit(sf.commit)
+      service.synchronized {
+        val tmpPath: Path = service.getCopiedPath(sf.commit.fileItem)
+        val distPath: Path = sf.commit.fileItem.toFile.toPath
+        Files.move(tmpPath, distPath)
+        service.mergeCreateCommit(sf.commit)
+      }
     }
   }
 }

@@ -1,5 +1,6 @@
 package com.github.chengpohi.init
 
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 import akka.actor.{ActorRef, ActorSystem, Props}
@@ -20,6 +21,11 @@ class Bootstrap(env: {val repositoryService: RepositoryService}) {
   import scala.concurrent.ExecutionContext.Implicits.global
   val rs = env.repositoryService
   def init = {
+    val file: File = new File(AppConfig.SYNC_HISTORY_FOLDER)
+    file.exists() match {
+      case true =>
+      case false => file.mkdir()
+    }
     rs.commit
   }
   def start(config: Config) = {
@@ -27,7 +33,7 @@ class Bootstrap(env: {val repositoryService: RepositoryService}) {
     val syncService: ActorRef = actorSystem.actorOf(Props(classOf[SyncService]), name = "syncer")
     val receiver = new Receiver(actorSystem, AppConfig.HOSTNAME, AppConfig.RECEIVER_PORT)
     actorSystem.scheduler.schedule(
-      initialDelay = Duration(10, TimeUnit.SECONDS),
+      initialDelay = Duration(20, TimeUnit.SECONDS),
       interval = Duration(AppConfig.INTERVAL, TimeUnit.SECONDS),
       runnable = SyncScheduler(rs, syncService))
 

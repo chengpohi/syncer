@@ -1,11 +1,10 @@
 package com.github.chengpohi.tcp
 
-import java.nio.file.{Path, Paths}
 import java.util.Date
 
 import akka.actor.{ActorRef, ActorSystem}
 import akka.stream.ActorMaterializer
-import akka.stream.scaladsl.{FileIO, Sink, Tcp}
+import akka.stream.scaladsl.{FileIO, Tcp}
 import com.github.chengpohi.file.{Commit, Create}
 import com.github.chengpohi.model.FileItem
 import com.github.chengpohi.service.SendFileDone
@@ -28,16 +27,15 @@ class Sender(system: ActorSystem, address: String, port: Int, receiver: ActorRef
   implicit val materializer = ActorMaterializer()
 
   def send(dist: String) = {
-    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port)).runForeach(i => "").onComplete {
+    FileIO.fromPath(c.fileItem.toPath).via(Tcp().outgoingConnection(address, port))
+        .runForeach(i => "").onComplete {
       case Success(result) =>
         if (receiver != null) {
           receiver ! SendFileDone(c)
         }
         log.info("Send Commit finished: {}", c)
-        system.terminate()
       case Failure(e) =>
-        println("Failure: " + e.getMessage)
-        system.terminate()
+        log.error("Failure: {}", e.getMessage)
     }
   }
 
