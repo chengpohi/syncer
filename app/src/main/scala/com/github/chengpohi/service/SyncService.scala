@@ -1,6 +1,6 @@
 package com.github.chengpohi.service
 
-import java.nio.file.{Files, Path}
+import java.nio.file.Path
 
 import akka.actor.{Actor, ActorLogging, Props}
 import akka.cluster.Cluster
@@ -83,7 +83,9 @@ class SyncAggregator extends Actor with ActorLogging {
             if (!c.fileItem.toFile.exists() && !c.fileItem.toTmpFile.exists()) {
               sender() ! RequestFile(c.fileItem, c.fileItem.toTmpFile.toPath.toString, c)
             }
-          case Delete => service.mergeDeleteCommit(c)
+          case Delete => service.synchronized{
+            service.mergeDeleteCommit(c)
+          }
         }
       })
     }
@@ -91,10 +93,11 @@ class SyncAggregator extends Actor with ActorLogging {
       service.synchronized {
         val tmpPath: Path = service.getCopiedPath(sf.commit.fileItem)
         val distPath: Path = sf.commit.fileItem.toFile.toPath
-        Files.move(tmpPath, distPath)
+        service.copy(tmpPath, distPath)
         service.mergeCreateCommit(sf.commit)
         log.info("merge create commit finished: {}", sf.commit)
       }
     }
   }
+
 }

@@ -1,7 +1,7 @@
 package com.github.chengpohi.repository
 
 import java.io.{File, FileNotFoundException, FileWriter}
-import java.nio.file.Paths
+import java.nio.file.{Files, Path, Paths}
 import java.util.Date
 import java.util.concurrent.locks.ReentrantLock
 
@@ -23,6 +23,7 @@ import scalaz.effect.IO
   */
 class RepositoryService(fileTableDAO: FileTableDAO) {
   lazy val log = LoggerFactory.getLogger(getClass.getName)
+
   import com.github.chengpohi.model.FileItemOps._
 
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
@@ -67,11 +68,9 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
   }
 
   def mergeDeleteCommit(commit: Commit): Boolean = {
-    this.lock.lock()
     val repository = readRepository.get
     val updated: Repository = repository.copy(commits = repository.commits :+ commit)
     writeRepository(updated)
-    this.lock.unlock()
     val file: File = commit.fileItem.toFile
     if (file.exists()) {
       file.delete()
@@ -99,6 +98,16 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
   }
 
   def getCopiedPath(fileItem: FileItem) = fileTableDAO.getCopiedFile(fileItem.md5).toPath
+
+  def copy(tmpPath: Path, distPath: Path) = {
+    createParentFile(distPath)
+    Files.move(tmpPath, distPath)
+  }
+
+  def createParentFile(path: Path) = {
+    val toFile: File = path.toFile
+    toFile.getParentFile.mkdirs()
+  }
 
   def tryLock = lock.tryLock()
   def unlock = lock.unlock()
