@@ -27,7 +27,7 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
 
   implicit val formats = org.json4s.DefaultFormats + OperationSerializer
   private val lock = new ReentrantLock()
-  def commit = {
+  def commit() = {
     val fileItems = fileTableDAO.getFiles
     val repository = readRepository
     val updatedRepository = repository match {
@@ -60,7 +60,8 @@ class RepositoryService(fileTableDAO: FileTableDAO) {
 
   def mergeCreateCommit(commit: Commit): Boolean = {
     val repository = readRepository.get
-    val updated: Repository = repository.copy(commits = repository.commits :+ commit)
+    val updated: Repository = repository.copy(fileItems = repository.fileItems :+ commit.fileItem,
+      commits = repository.commits :+ commit)
     writeRepository(updated)
     true
   }

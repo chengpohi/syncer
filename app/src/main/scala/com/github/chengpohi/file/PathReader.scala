@@ -1,14 +1,12 @@
 package com.github.chengpohi.file
 
-import java.io.File
+import java.io.{File, FileInputStream}
 import java.nio.file.{Path, Paths}
 import java.util.Date
 
 import com.github.chengpohi.config.AppConfig
 import com.github.chengpohi.model.FileItem
 import org.json4s._
-
-import scala.io.Source
 
 /**
   * syncer
@@ -92,15 +90,17 @@ object FileTable {
     file.canRead match {
       case true =>
         val length = file.length()
-        val head: String = Source.fromFile(file).take(8192 * 2).mkString("")
-        FileTable.md5Hash(head + length)
+        val inputStream: FileInputStream = new FileInputStream(file)
+        val take: Array[Byte] = Stream.continually(inputStream.read).take(8192 * 2).map(_.toByte).toArray
+        md5Hash(take :+ length.toByte)
       case false =>
         md5Hash(System.currentTimeMillis().toString)
     }
   }
 
-  def md5Hash(source: String): String =
-    java.security.MessageDigest.getInstance("MD5").digest(source.getBytes).map(0xFF & _).map {
+  def md5Hash(source: String): String = md5Hash(source.getBytes)
+  def md5Hash(bytes: Array[Byte]): String =
+    java.security.MessageDigest.getInstance("MD5").digest(bytes).map(0xFF & _).map {
       "%02x".format(_)
     }.foldLeft("") {
       _ + _

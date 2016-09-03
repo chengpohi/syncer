@@ -26,7 +26,7 @@ class Bootstrap(env: {val repositoryService: RepositoryService}) {
       case true =>
       case false => file.mkdir()
     }
-    rs.commit
+    rs.commit()
   }
   def start(config: Config) = {
     val actorSystem = ActorSystem("Syncer", config)

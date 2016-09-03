@@ -10,12 +10,12 @@ import org.slf4j.LoggerFactory
   * Created by chengpohi on 8/28/16.
   */
 trait SyncScheduler extends Runnable {
-  lazy val LOGER = LoggerFactory.getLogger(getClass.getName)
+  lazy val log = LoggerFactory.getLogger(getClass.getName)
   val repositoryService: RepositoryService
   val ac: ActorRef
   override def run(): Unit = {
     repositoryService.synchronized {
-      val repository: Repository = repositoryService.commit
+      val repository: Repository = repositoryService.commit()
       ac ! repository
     }
   }

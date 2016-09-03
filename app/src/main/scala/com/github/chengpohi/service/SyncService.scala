@@ -93,6 +93,7 @@ class SyncAggregator extends Actor with ActorLogging {
         val distPath: Path = sf.commit.fileItem.toFile.toPath
         Files.move(tmpPath, distPath)
         service.mergeCreateCommit(sf.commit)
+        log.info("merge create commit finished: {}", sf.commit)
       }
     }
   }
